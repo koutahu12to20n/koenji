@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>麻雀成績管理ツール</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <h1>🀄 麻雀成績管理</h1>
+    </header>
+
+    <main>
+        <div id="home-screen">
+            <nav class="menu-container">
+                <button onclick="registerMember()" class="btn-green">① メンバー登録</button>
+                <button onclick="showInputScreen()" class="btn-blue">② 成績登録（対局終了）</button>
+                <button onclick="resetData()" class="btn-red-outline">⚠ データ初期化</button>
+            </nav>
+
+            <hr>
+
+            <section class="ranking-section">
+                <h2>🏆 総合ポイントランキング 🏆</h2>
+                <table id="rankingTable">
+                    <thead>
+                        <tr>
+                            <th width="15%">順位</th>
+                            <th width="35%">名前</th>
+                            <th width="20%">対戦数</th>
+                            <th width="30%">Pt</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rankingBody">
+                        </tbody>
+                </table>
+            </section>
+        </div>
+
+        <div id="input-screen" class="hidden">
+            <h2>📝 スコア入力・ルール設定</h2>
+
+            <div class="score-form-container">
+                <details class="settings-box">
+                    <summary>⚙️ ルール設定 (クリックで開閉)</summary>
+                    <div class="settings-content">
+                        <div class="settings-grid">
+                            <div class="setting-item">
+                                <label>持ち点</label>
+                                <input type="number" id="startPoint" value="25000">
+                            </div>
+                            <div class="setting-item">
+                                <label>返し点</label>
+                                <input type="number" id="returnPoint" value="30000">
+                            </div>
+                        </div>
+                        <div class="settings-uma">
+                            <label>順位ウマ (1位〜4位)</label>
+                            <div class="uma-inputs">
+                                <input type="number" id="uma1" value="30" placeholder="1位">
+                                <input type="number" id="uma2" value="10" placeholder="2位">
+                                <input type="number" id="uma3" value="-10" placeholder="3位">
+                                <input type="number" id="uma4" value="-30" placeholder="4位">
+                            </div>
+                            <small>※初期値はMリーグ準拠 (30, 10, -10, -30)</small>
+                        </div>
+                    </div>
+                </details>
+
+                <hr>
+
+                <table class="score-table">
+                    <thead>
+                        <tr>
+                            <th>着順</th>
+                            <th>名前</th>
+                            <th>持ち点 (例: 35000)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inputRows">
+                        </tbody>
+                </table>
+
+                <div class="btn-group">
+                    <button onclick="calculateAndSave()" class="btn-blue">計算して確定</button>
+                    <button onclick="showHomeScreen()" class="btn-gray">キャンセルして戻る</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
