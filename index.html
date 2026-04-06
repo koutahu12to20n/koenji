@@ -2,95 +2,602 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>麻雀成績管理ツール</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="麻雀管理">
+    <title>麻雀成績管理</title>
+    <style>
+        :root { --primary: #1976d2; --bg: #f5f5f5; --del: #e53935; --edit: #fbc02d; --money: #2e7d32; --safe: #00796b; }
+        body { font-family: -apple-system, sans-serif; margin: 0; padding: 0; background: var(--bg); color: #333; font-size: 14px; padding-bottom: env(safe-area-inset-bottom); }
+        
+        header { background: #fff; padding: 15px; padding-top: max(15px, env(safe-area-inset-top)); text-align: center; font-weight: bold; font-size: 16px; border-bottom: 1px solid #ddd; position: sticky; top:0; z-index: 100; }
+        
+        .nav { display: flex; background: #fff; border-bottom: 1px solid #ddd; position: sticky; top: 50px; z-index: 99; }
+        @media all and (display-mode: standalone) { .nav { top: 70px; } }
+
+        .nav-item { flex: 1; padding: 12px 0; text-align: center; cursor: pointer; color: #666; border-bottom: 3px solid transparent; -webkit-tap-highlight-color: transparent; }
+        .nav-item.active { border-bottom-color: var(--primary); color: var(--primary); font-weight: bold; }
+        .container { padding: 15px; max-width: 800px; margin: 0 auto; padding-bottom: 100px; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        .day-header { font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; }
+        .day-summary { background: #e8f5e9; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; line-height: 1.5; border-left: 5px solid var(--money); }
+        
+        .log-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; }
+        .log-table th { background: #f5f5f5; padding: 6px; border: 1px solid #eee; font-weight: normal; font-size: 12px; }
+        .log-table td { padding: 6px; border: 1px solid #eee; height: 36px; vertical-align: middle; }
+
+        .stats-wrap { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+        .stats-table { border-collapse: collapse; font-size: 13px; width: 100%; min-width: 600px; }
+        .stats-table th, .stats-table td { border: 1px solid #ddd; padding: 8px 4px; text-align: center; }
+        .stats-table th { background: #eee; font-weight: bold; position: sticky; top: 0; z-index: 10; }
+        .col-fixed { position: sticky; left: 0; background: #fff; z-index: 20; border-right: 2px solid #ddd; font-weight: bold; color: var(--primary); }
+        .bg-rank1 { background-color: #e3f2fd; } 
+        .bg-rank4 { background-color: #ffebee; }
+        
+        .input-row { display: flex; align-items: center; gap: 5px; margin-bottom: 10px; }
+        .input-row select { flex: 1.5; padding: 10px; border: 1px solid #ccc; border-radius: 4px; background: #fff; font-size:16px; }
+        .input-row input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; text-align: right; font-size:16px; }
+        
+        .uma-row { display: flex; gap: 5px; margin-bottom: 5px; }
+        .uma-row input { flex: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+
+        .btn { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 4px; font-weight: bold; font-size:16px; margin-top:10px; cursor: pointer; -webkit-appearance: none; }
+        .btn:active { opacity: 0.8; }
+        .btn-cancel { background: #999; margin-top: 10px; display: none; }
+        
+        .btn-sm { border: none; border-radius: 4px; padding: 6px 8px; font-size: 11px; cursor: pointer; margin-left: 3px; color: white; -webkit-appearance: none; }
+        .btn-edit { background: var(--edit); color: #333; }
+        .btn-del { background: var(--del); width: 40px; transition: all 0.2s; }
+        .btn-del.confirm { background: #333; width: auto; }
+        
+        /* バックアップ用ボタン */
+        .btn-backup { background: var(--safe); margin-top: 10px; }
+        .btn-restore { background: #555; margin-top: 5px; font-size: 12px; }
+
+    </style>
 </head>
 <body>
 
-    <header>
-        <h1>🀄 麻雀成績管理</h1>
-    </header>
+<header>麻雀成績管理</header>
 
-    <main>
-        <div id="home-screen">
-            <nav class="menu-container">
-                <button onclick="registerMember()" class="btn-green">① メンバー登録</button>
-                <button onclick="showInputScreen()" class="btn-blue">② 成績登録（対局終了）</button>
-                <button onclick="resetData()" class="btn-red-outline">⚠ データ初期化</button>
-            </nav>
+<nav class="nav">
+    <div class="nav-item active" id="tab-stats">成績表</div>
+    <div class="nav-item" id="tab-history">記録一覧</div>
+    <div class="nav-item" id="tab-input">入力</div>
+    <div class="nav-item" id="tab-settings">設定</div>
+</nav>
 
-            <hr>
+<div class="container">
 
-            <section class="ranking-section">
-                <h2>🏆 総合ポイントランキング 🏆</h2>
-                <table id="rankingTable">
+    <div id="page-stats" class="page active">
+        <div class="card" style="padding:0;">
+            <div class="stats-wrap">
+                <table class="stats-table" id="statsTable">
                     <thead>
                         <tr>
-                            <th width="15%">順位</th>
-                            <th width="35%">名前</th>
-                            <th width="20%">対戦数</th>
-                            <th width="30%">Pt</th>
+                            <th class="col-fixed">名前</th>
+                            <th>総数</th>
+                            <th>合計Pt</th>
+                            <th style="color:var(--money);">収支</th>
+                            <th class="bg-rank1">1位</th><th>2位</th><th>3位</th><th class="bg-rank4">4位</th>
+                            <th>平均<br>順位</th><th>平均<br>素点</th>
+                            <th>トップ<br>率</th><th>連対<br>率</th><th>ラス<br>回避</th><th>飛び<br>率</th>
                         </tr>
                     </thead>
-                    <tbody id="rankingBody">
-                        </tbody>
+                    <tbody></tbody>
                 </table>
-            </section>
-        </div>
-
-        <div id="input-screen" class="hidden">
-            <h2>📝 スコア入力・ルール設定</h2>
-
-            <div class="score-form-container">
-                <details class="settings-box">
-                    <summary>⚙️ ルール設定 (クリックで開閉)</summary>
-                    <div class="settings-content">
-                        <div class="settings-grid">
-                            <div class="setting-item">
-                                <label>持ち点</label>
-                                <input type="number" id="startPoint" value="25000">
-                            </div>
-                            <div class="setting-item">
-                                <label>返し点</label>
-                                <input type="number" id="returnPoint" value="30000">
-                            </div>
-                        </div>
-                        <div class="settings-uma">
-                            <label>順位ウマ (1位〜4位)</label>
-                            <div class="uma-inputs">
-                                <input type="number" id="uma1" value="30" placeholder="1位">
-                                <input type="number" id="uma2" value="10" placeholder="2位">
-                                <input type="number" id="uma3" value="-10" placeholder="3位">
-                                <input type="number" id="uma4" value="-30" placeholder="4位">
-                            </div>
-                            <small>※初期値はMリーグ準拠 (30, 10, -10, -30)</small>
-                        </div>
-                    </div>
-                </details>
-
-                <hr>
-
-                <table class="score-table">
-                    <thead>
-                        <tr>
-                            <th>着順</th>
-                            <th>名前</th>
-                            <th>持ち点 (例: 35000)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="inputRows">
-                        </tbody>
-                </table>
-
-                <div class="btn-group">
-                    <button onclick="calculateAndSave()" class="btn-blue">計算して確定</button>
-                    <button onclick="showHomeScreen()" class="btn-gray">キャンセルして戻る</button>
-                </div>
             </div>
         </div>
-    </main>
+        <p style="text-align:center;font-size:12px;color:#888;">横スクロールで詳細を表示 ➡</p>
+    </div>
 
-    <script src="script.js"></script>
+    <div id="page-history" class="page">
+        <div id="historyList"></div>
+    </div>
+
+    <div id="page-input" class="page">
+        <div class="card">
+            <h3 id="inputTitle">対戦入力</h3>
+            <label>日付: <input type="date" id="gameDate" style="font-size:16px; padding:5px;"></label>
+            <div style="margin-top:15px;" id="inputForm"></div>
+            <div style="text-align:right; margin-top:10px; font-weight:bold;" id="checkTotal">合計: 0</div>
+            
+            <button class="btn" id="saveBtn">保存する</button>
+            <button class="btn btn-cancel" id="cancelBtn">修正をキャンセル</button>
+        </div>
+        <div class="card" style="background:#fff3e0; font-size:12px;">
+            ※ルール: 25000点持ち/3万点返し<br>
+            <span id="ruleDisplay"></span> / オカ+20
+        </div>
+    </div>
+
+    <div id="page-settings" class="page">
+        
+        <div class="card" style="border: 2px solid var(--safe);">
+            <h3 style="color:var(--safe);">🛡️ データ管理 (推奨)</h3>
+            <p style="font-size:12px; color:#666;">データ消失を防ぐため、定期的にバックアップを取ってください。</p>
+            <button id="backupBtn" class="btn btn-backup">データをコピー (バックアップ)</button>
+            <button id="restoreBtn" class="btn btn-restore">データを復元する</button>
+        </div>
+
+        <div class="card">
+            <h3>🀄 ウマ設定</h3>
+            <div class="uma-row">
+                <input type="number" id="uma1" placeholder="+20">
+                <input type="number" id="uma2" placeholder="+10">
+                <input type="number" id="uma3" placeholder="-10">
+                <input type="number" id="uma4" placeholder="-20">
+            </div>
+            <div style="text-align:right; margin-top:5px;">
+                <button id="resetUmaBtn" style="background:#eee; color:#333; border:1px solid #ccc; border-radius:4px; padding:5px 10px; font-size:12px;">10-20に戻す</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>💰 レート設定</h3>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <label>1pt = </label>
+                <input type="number" id="rateInput" value="50" style="width:80px; padding:8px; border:1px solid #ccc; border-radius:4px; text-align:right; font-size:16px;">
+                <span>円</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>メンバー登録</h3>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="newMemberName" placeholder="名前" style="flex:1; padding:10px; border:1px solid #ddd; font-size:16px;">
+                <button id="addMemberBtn" style="padding:10px; background:#333; color:white; border:none; border-radius:4px; font-size:14px;">追加</button>
+            </div>
+        </div>
+        <div class="card">
+            <h3>メンバーリスト</h3>
+            <ul id="memberList"></ul>
+        </div>
+        <div style="text-align:center; margin-top:30px;">
+            <button id="resetBtn" style="color:red; background:none; border:none; text-decoration:underline;">データ全削除</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- データキー ---
+    const KEY_MEMBERS = 'mj_v8_members';
+    const KEY_GAMES = 'mj_v8_games';
+    const KEY_RATE = 'mj_v8_rate';
+    const KEY_UMA = 'mj_v8_uma';
+
+    // 読み込み時にエラーチェック
+    let members = safeParse(KEY_MEMBERS, []);
+    let games = safeParse(KEY_GAMES, []);
+    let rate = Number(localStorage.getItem(KEY_RATE) || 50);
+    let uma = safeParse(KEY_UMA, [20, 10, -10, -20]);
+
+    let editingGameId = null;
+
+    // --- 安全に読み込む関数 ---
+    function safeParse(key, defaultVal) {
+        try {
+            const val = localStorage.getItem(key);
+            return val ? JSON.parse(val) : defaultVal;
+        } catch(e) {
+            console.error('Data load error', e);
+            return defaultVal;
+        }
+    }
+
+    // --- データを安全に保存する関数 ---
+    function saveData(key, val) {
+        try {
+            localStorage.setItem(key, JSON.stringify(val));
+            return true;
+        } catch(e) {
+            alert('【重要】データの保存に失敗しました！\nスマホの容量がいっぱいか、プライベートモードの可能性があります。\n設定タブから「データのコピー」をして、メモ帳に避難させてください。');
+            return false;
+        }
+    }
+
+    // --- 初期化 ---
+    document.getElementById('gameDate').valueAsDate = new Date();
+    document.getElementById('rateInput').value = rate;
+    loadUmaToInputs();
+
+    // イベント設定
+    document.getElementById('tab-stats').onclick = () => showPage('stats');
+    document.getElementById('tab-history').onclick = () => showPage('history');
+    document.getElementById('tab-input').onclick = () => showPage('input');
+    document.getElementById('tab-settings').onclick = () => showPage('settings');
+
+    document.getElementById('saveBtn').onclick = saveGame;
+    document.getElementById('cancelBtn').onclick = cancelEdit;
+    document.getElementById('addMemberBtn').onclick = addMember;
+    document.getElementById('resetBtn').onclick = resetData;
+    
+    // バックアップ機能
+    document.getElementById('backupBtn').onclick = exportData;
+    document.getElementById('restoreBtn').onclick = importData;
+
+    document.getElementById('rateInput').oninput = function() {
+        rate = Number(this.value);
+        localStorage.setItem(KEY_RATE, rate);
+        updateUI();
+    };
+
+    ['uma1','uma2','uma3','uma4'].forEach((id, idx) => {
+        document.getElementById(id).oninput = function() {
+            uma[idx] = Number(this.value);
+            saveData(KEY_UMA, uma);
+            updateRuleDisplay();
+        };
+    });
+    
+    document.getElementById('resetUmaBtn').onclick = () => setUma([20, 10, -10, -20]);
+
+    function setUma(arr) {
+        uma = arr;
+        saveData(KEY_UMA, uma);
+        loadUmaToInputs();
+    }
+    
+    function loadUmaToInputs() {
+        document.getElementById('uma1').value = uma[0];
+        document.getElementById('uma2').value = uma[1];
+        document.getElementById('uma3').value = uma[2];
+        document.getElementById('uma4').value = uma[3];
+        updateRuleDisplay();
+    }
+
+    function updateRuleDisplay() {
+        document.getElementById('ruleDisplay').innerText = `ウマ[${uma[0]}, ${uma[1]}, ${uma[2]}, ${uma[3]}]`;
+    }
+
+    // 履歴リストのボタン管理
+    document.getElementById('historyList').addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-del')) {
+            const btn = e.target;
+            const gameId = Number(btn.dataset.id);
+            if (!btn.classList.contains('confirm')) {
+                btn.classList.add('confirm');
+                btn.innerText = '確定';
+                setTimeout(() => { if(btn) { btn.classList.remove('confirm'); btn.innerText = '削除'; } }, 3000);
+            } else {
+                deleteGameReal(gameId);
+            }
+        }
+        if (e.target.classList.contains('btn-edit')) {
+            const gameId = Number(e.target.dataset.id);
+            startEdit(gameId);
+        }
+    });
+
+    updateUI();
+
+    // --- バックアップ機能 ---
+    function exportData() {
+        const data = {
+            members: members,
+            games: games,
+            rate: rate,
+            uma: uma
+        };
+        const str = JSON.stringify(data);
+        
+        // クリップボードにコピー
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(str).then(() => {
+                alert('データをコピーしました！\n\nメモ帳アプリなどに「ペースト（貼り付け）」して大切に保存してください。');
+            }).catch(err => {
+                prompt('以下のテキストを全てコピーして保存してください:', str);
+            });
+        } else {
+            prompt('以下のテキストを全てコピーして保存してください:', str);
+        }
+    }
+
+    function importData() {
+        const str = prompt('保存したデータ（文字列）をここに貼り付けてください。\n※現在のデータは上書きされます！');
+        if (!str) return;
+        
+        try {
+            const data = JSON.parse(str);
+            if (data.members && data.games) {
+                if(confirm('データを復元しますか？\n現在のデータは消えます。')) {
+                    members = data.members;
+                    games = data.games;
+                    rate = data.rate || 50;
+                    uma = data.uma || [20,10,-10,-20];
+                    
+                    saveData(KEY_MEMBERS, members);
+                    saveData(KEY_GAMES, games);
+                    localStorage.setItem(KEY_RATE, rate);
+                    saveData(KEY_UMA, uma);
+                    
+                    alert('復元しました！');
+                    location.reload();
+                }
+            } else {
+                alert('データの形式が正しくありません。');
+            }
+        } catch(e) {
+            alert('データの読み込みに失敗しました。コピーミスがないか確認してください。');
+        }
+    }
+
+    // --- 画面切り替え ---
+    function showPage(id) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-' + id).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById('tab-' + id).classList.add('active');
+        
+        if(id === 'input') renderInput();
+        updateUI();
+    }
+
+    function updateUI() {
+        renderMembers();
+        renderStats();
+        renderHistory();
+    }
+
+    // --- メンバー ---
+    function addMember() {
+        const name = document.getElementById('newMemberName').value.trim();
+        if(!name) return;
+        members.push({ id: Date.now(), name });
+        saveData(KEY_MEMBERS, members);
+        document.getElementById('newMemberName').value = '';
+        alert('追加しました');
+        updateUI();
+    }
+    function renderMembers() {
+        document.getElementById('memberList').innerHTML = members.map(m => `<li>${m.name}</li>`).join('');
+    }
+
+    // --- 入力 ---
+    function renderInput() {
+        const div = document.getElementById('inputForm');
+        if(!editingGameId && div.innerHTML && div.children.length === 4) return;
+        if(members.length === 0) { div.innerHTML = '先に設定タブでメンバーを追加してください'; return; }
+
+        const opts = members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+        let html = '';
+        for(let i=1; i<=4; i++) {
+            html += `
+            <div class="input-row">
+                <span style="font-weight:bold; width:15px;">${i}</span>
+                <select id="p${i}_id">${opts}</select>
+                <input type="number" id="p${i}_raw" placeholder="素点 (25000)" oninput="calcTotal()">
+            </div>`;
+        }
+        div.innerHTML = html;
+        
+        window.calcTotal = function() {
+            let sum = 0;
+            for(let i=1; i<=4; i++) sum += Number(document.getElementById(`p${i}_raw`).value);
+            const el = document.getElementById('checkTotal');
+            el.innerText = `合計: ${sum}`;
+            el.style.color = (sum === 100000) ? 'green' : 'red';
+        };
+    }
+
+    function saveGame() {
+        const date = document.getElementById('gameDate').value;
+        const res = [];
+        const ids = new Set();
+        let sum = 0;
+
+        for(let i=1; i<=4; i++) {
+            const id = Number(document.getElementById(`p${i}_id`).value);
+            const raw = Number(document.getElementById(`p${i}_raw`).value);
+            if(ids.has(id)) return alert('メンバーが重複しています');
+            ids.add(id);
+            sum += raw;
+            res.push({ id, raw });
+        }
+        
+        if(sum !== 100000) {
+            alert(`合計点が ${sum} 点です。\n100,000点にしてから保存してください。`);
+            return; 
+        }
+
+        const sorted = [...res].sort((a,b) => b.raw - a.raw);
+        const final = sorted.map((r, rank) => {
+            let pt = (r.raw - 30000) / 1000;
+            pt += uma[rank]; 
+            if(rank === 0) pt += 20; // オカ
+            pt = Math.round(pt * 10) / 10;
+            return { id: r.id, raw: r.raw, score: pt };
+        });
+
+        const newGame = { gameId: editingGameId || Date.now(), date, results: final };
+
+        if (editingGameId) {
+            const idx = games.findIndex(g => g.gameId === editingGameId);
+            if(idx !== -1) games[idx] = newGame;
+            alert('修正しました');
+            cancelEdit();
+        } else {
+            games.push(newGame);
+            alert('保存しました');
+            for(let i=1; i<=4; i++) document.getElementById(`p${i}_raw`).value = '';
+            window.calcTotal();
+        }
+
+        saveData(KEY_GAMES, games);
+        showPage('history');
+    }
+
+    // --- 修正 ---
+    function startEdit(gameId) {
+        const game = games.find(g => g.gameId === gameId);
+        if(!game) return;
+
+        editingGameId = gameId;
+        showPage('input');
+        
+        document.getElementById('gameDate').value = game.date;
+        document.getElementById('inputTitle').innerText = '対戦履歴の修正';
+        document.getElementById('saveBtn').innerText = '修正を保存';
+        document.getElementById('saveBtn').style.background = '#fbc02d';
+        document.getElementById('saveBtn').style.color = '#333';
+        document.getElementById('cancelBtn').style.display = 'block';
+
+        const div = document.getElementById('inputForm');
+        div.innerHTML = '';
+        
+        let html = '';
+        game.results.forEach((r, i) => {
+             const selectedOpts = members.map(m => 
+                 `<option value="${m.id}" ${m.id === r.id ? 'selected' : ''}>${m.name}</option>`
+             ).join('');
+             html += `
+            <div class="input-row">
+                <span style="font-weight:bold; width:15px;">${i+1}</span>
+                <select id="p${i+1}_id">${selectedOpts}</select>
+                <input type="number" id="p${i+1}_raw" value="${r.raw}" oninput="calcTotal()">
+            </div>`;
+        });
+        div.innerHTML = html;
+        window.calcTotal();
+    }
+
+    function cancelEdit() {
+        editingGameId = null;
+        document.getElementById('inputTitle').innerText = '対戦入力';
+        document.getElementById('saveBtn').innerText = '保存する';
+        document.getElementById('saveBtn').style.background = '#1976d2';
+        document.getElementById('saveBtn').style.color = '#fff';
+        document.getElementById('cancelBtn').style.display = 'none';
+        document.getElementById('inputForm').innerHTML = '';
+        renderInput(); 
+    }
+
+    // --- 履歴・削除 ---
+    function deleteGameReal(id) {
+        games = games.filter(g => g.gameId !== id);
+        saveData(KEY_GAMES, games);
+        updateUI();
+    }
+
+    function renderHistory() {
+        const div = document.getElementById('historyList');
+        if(games.length === 0) { div.innerHTML = '<p style="text-align:center;color:#999">履歴なし</p>'; return; }
+
+        const groups = {};
+        games.forEach(g => {
+            if(!groups[g.date]) groups[g.date] = [];
+            groups[g.date].push(g);
+        });
+        const dates = Object.keys(groups).sort().reverse();
+
+        let html = '';
+        dates.forEach(date => {
+            const dayGames = groups[date];
+            const dayTotal = {};
+            const dayIds = new Set();
+            dayGames.forEach(g => g.results.forEach(r => {
+                dayIds.add(r.id);
+                dayTotal[r.id] = (dayTotal[r.id] || 0) + r.score;
+            }));
+
+            const summary = Array.from(dayIds).map(id => {
+                const m = members.find(mx => mx.id === id);
+                if(!m) return '';
+                const val = dayTotal[id];
+                const money = Math.round(val * rate).toLocaleString(); 
+                const color = val >= 0 ? '#1976d2' : '#d32f2f';
+                return `${m.name}: <span style="color:${color}; font-weight:bold;">${val>0?'+':''}${money}円</span>`;
+            }).join(' / ');
+
+            html += `<div class="card">
+                <div class="day-header"><span>${date}</span></div>
+                <div class="day-summary">${summary}</div>
+                <table class="log-table">
+                    <thead><tr><th>回</th><th>1位</th><th>2位</th><th>3位</th><th>4位</th><th>操作</th></tr></thead>
+                    <tbody>`;
+            
+            dayGames.forEach((g, idx) => {
+                let tds = '';
+                g.results.forEach(r => {
+                    const m = members.find(mx => mx.id === r.id);
+                    const name = m ? m.name : '?';
+                    const sc = r.score > 0 ? '+'+r.score : r.score;
+                    const col = r.score >= 0 ? '#1976d2' : '#d32f2f';
+                    tds += `<td>${name}<br><span style="color:${col}">${sc}</span></td>`;
+                });
+                
+                html += `<tr>
+                    <td>${idx+1}</td>
+                    ${tds}
+                    <td>
+                        <button class="btn-sm btn-edit" data-id="${g.gameId}">修正</button>
+                        <button class="btn-sm btn-del" data-id="${g.gameId}">削除</button>
+                    </td>
+                </tr>`;
+            });
+            html += `</tbody></table></div>`;
+        });
+        div.innerHTML = html;
+    }
+
+    // --- 成績表 ---
+    function renderStats() {
+        const stats = {};
+        members.forEach(m => stats[m.id] = { name: m.name, games:0, pt:0, ranks:[0,0,0,0], rawSum:0, tobi:0 });
+        
+        games.forEach(g => {
+            g.results.forEach((r, i) => {
+                if(!stats[r.id]) return;
+                const s = stats[r.id];
+                s.games++;
+                s.pt += r.score;
+                s.ranks[i]++;
+                s.rawSum += r.raw;
+                if(r.raw < 0) s.tobi++;
+            });
+        });
+
+        const rows = Object.values(stats).sort((a,b) => b.pt - a.pt);
+        const tbody = document.querySelector('#statsTable tbody');
+        
+        tbody.innerHTML = rows.map(s => {
+            if(s.games === 0) return '';
+            const rateStr = (n) => (n/s.games*100).toFixed(1) + '%';
+            const avgRank = (s.ranks.reduce((a,c,i)=>a+c*(i+1),0)/s.games).toFixed(2);
+            
+            const totalMoney = Math.round(s.pt * rate).toLocaleString();
+            const moneyColor = s.pt >= 0 ? '#1976d2' : '#d32f2f';
+
+            return `<tr>
+                <td class="col-fixed">${s.name}</td>
+                <td>${s.games}</td>
+                <td style="color:${s.pt>=0?'blue':'red'}">${s.pt>0?'+':''}${s.pt.toFixed(1)}</td>
+                <td style="color:${moneyColor}; font-weight:bold;">${s.pt>0?'+':''}${totalMoney}</td>
+                <td class="bg-rank1">${s.ranks[0]}<br><span style="font-size:10px;color:#666">${rateStr(s.ranks[0])}</span></td>
+                <td>${s.ranks[1]}<br><span style="font-size:10px;color:#666">${rateStr(s.ranks[1])}</span></td>
+                <td>${s.ranks[2]}<br><span style="font-size:10px;color:#666">${rateStr(s.ranks[2])}</span></td>
+                <td class="bg-rank4">${s.ranks[3]}<br><span style="font-size:10px;color:#666">${rateStr(s.ranks[3])}</span></td>
+                <td>${avgRank}</td>
+                <td>${Math.round(s.rawSum/s.games).toLocaleString()}</td>
+                <td>${rateStr(s.ranks[0])}</td>
+                <td>${rateStr(s.ranks[0]+s.ranks[1])}</td>
+                <td>${rateStr(s.ranks[0]+s.ranks[1]+s.ranks[2])}</td>
+                <td>${rateStr(s.tobi)}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function resetData() {
+        if(confirm('全データを削除しますか？')) {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+</script>
 </body>
 </html>
